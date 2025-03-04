@@ -24,6 +24,7 @@
         let map = L.map('map').setView([35.6895, 139.6917], 14);
         let path = [];
         let polyline = L.polyline(path, { color: 'red' }).addTo(map);
+        let marker = L.marker([35.6895, 139.6917]).addTo(map); // 現在地マーカー
         let watchId;
 
         // 国土地理院の地図タイルを設定
@@ -39,10 +40,12 @@
                     (position) => {
                         let lat = position.coords.latitude;
                         let lng = position.coords.longitude;
-                        let newPos = [lat, lng];
+                        let timestamp = new Date(position.timestamp).toISOString();
+                        let newPos = { lat, lng, timestamp };
                         path.push(newPos);
-                        polyline.setLatLngs(path);
-                        map.setView(newPos, 14);
+                        polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
+                        map.setView([lat, lng], 14);
+                        marker.setLatLng([lat, lng]); // 現在位置を更新
                         document.getElementById("status").textContent = `現在地: 緯度 ${lat}, 経度 ${lng}`;
                     },
                     (error) => {
@@ -85,14 +88,14 @@
             }
             let geojson = {
                 type: "FeatureCollection",
-                features: [{
+                features: path.map(point => ({
                     type: "Feature",
                     geometry: {
-                        type: "LineString",
-                        coordinates: path.map(coord => [coord[1], coord[0]])
+                        type: "Point",
+                        coordinates: [point.lng, point.lat]
                     },
-                    properties: {}
-                }]
+                    properties: { timestamp: point.timestamp }
+                }))
             };
             let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
             let a = document.createElement("a");
@@ -112,14 +115,14 @@
             <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
                     <name>運転軌跡</name>
-                    <Placemark>
-                        <name>移動軌跡</name>
-                        <LineString>
-                            <coordinates>
-                                ${path.map(coord => `${coord[1]},${coord[0]},0`).join(' ')}
-                            </coordinates>
-                        </LineString>
-                    </Placemark>
+                    ${path.map(point => `
+                        <Placemark>
+                            <TimeStamp><when>${point.timestamp}</when></TimeStamp>
+                            <Point>
+                                <coordinates>${point.lng},${point.lat},0</coordinates>
+                            </Point>
+                        </Placemark>
+                    `).join('')}
                 </Document>
             </kml>`;
             let blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
