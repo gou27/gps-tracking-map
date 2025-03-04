@@ -1,42 +1,39 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+	<link rel="manifest" href="manifest.json">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="apple-mobile-web-app-title" content="運転軌跡記録">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>運転軌跡記録</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" defer></script>
+    <title>運転軌跡記録（国土地理院）</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
         #map { height: 80vh; width: 100%; }
         button { margin: 10px; padding: 10px; }
     </style>
 </head>
 <body>
-    <h1>運転軌跡記録アプリ</h1>
+    <h1>運転軌跡記録（国土地理院）</h1>
     <button onclick="startTracking()">スタート</button>
     <button onclick="stopTracking()">ストップ</button>
     <div id="map"></div>
     <p id="status"></p>
     
     <script>
-        let map;
-        let polyline;
-        let watchId;
+        let map = L.map('map').setView([35.6895, 139.6917], 14); // 東京中心
         let path = [];
+        let polyline = L.polyline(path, { color: 'red' }).addTo(map);
+        let watchId;
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: { lat: 35.6895, lng: 139.6917 }, // 東京の中心
-                zoom: 14
-            });
-            polyline = new google.maps.Polyline({
-                path: path,
-                geodesic: true,
-                strokeColor: "#FF0000",
-                strokeOpacity: 1.0,
-                strokeWeight: 3,
-                map: map
-            });
-        }
+        // 国土地理院の地図タイルを設定
+        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+            attribution: "<a href='https://maps.gsi.go.jp/'>国土地理院</a>",
+            maxZoom: 18
+        }).addTo(map);
 
         function startTracking() {
             if (navigator.geolocation) {
@@ -45,10 +42,10 @@
                     (position) => {
                         let lat = position.coords.latitude;
                         let lng = position.coords.longitude;
-                        let newPos = { lat, lng };
+                        let newPos = [lat, lng];
                         path.push(newPos);
-                        polyline.setPath(path);
-                        map.setCenter(newPos);
+                        polyline.setLatLngs(path);
+                        map.setView(newPos, 14);
                         document.getElementById("status").textContent = `現在地: 緯度 ${lat}, 経度 ${lng}`;
                     },
                     (error) => {
