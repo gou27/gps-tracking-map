@@ -7,11 +7,11 @@
   <title>移動軌跡取得アプリ</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-    #controls { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 5px; border-radius: 10px; text-align: center; }
-    button { margin: 2px; padding: 8px 12px; font-size: 14px; }
-    #status { margin-top: 5px; font-size: 14px; color: red; }
-    #map { height: 100vh; }
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+    #controls { width: 100%; text-align: center; background: rgba(255, 255, 255, 0.9); padding: 10px; border-bottom: 2px solid #ccc; }
+    button { margin: 5px; padding: 8px 12px; font-size: 14px; }
+    #status { font-size: 14px; color: red; margin-top: 5px; }
+    #map { flex-grow: 1; }
   </style>
 </head>
 <body>
@@ -28,13 +28,14 @@
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    let watchId = null;
     let positions = [];
     let trackLayer = null;
     let inactivityTimer = null;
+    let userMarker = null;
+    let watchId = null;  // Declare watchId globally
     const INACTIVITY_LIMIT = 20 * 60 * 1000;
     const statusElement = document.getElementById("status");
-    const map = L.map('map').setView([35.3606, 138.7274], 15); // 初期ズームレベル15
+    const map = L.map('map').setView([35.3606, 138.7274], 15);
 
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
       attribution: "<a href='https://www.gsi.go.jp/'>国土地理院</a>",
@@ -65,7 +66,12 @@
         return;
       }
       updateStatus("位置情報の取得を開始しました。");
-      watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+      watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, { 
+        enableHighAccuracy: true, 
+        maximumAge: 0, 
+        timeout: 5000, // 5秒ごとに更新
+        distanceFilter: 0.5 // 50cm移動ごとに更新
+      });
       resetInactivityTimer();
     }
 
@@ -82,7 +88,14 @@
       const latlng = [position.coords.latitude, position.coords.longitude];
       positions.push({ lat: position.coords.latitude, lng: position.coords.longitude, timestamp: position.timestamp });
       updateStatus(`位置取得成功: 緯度${position.coords.latitude}, 経度${position.coords.longitude}`);
-      map.setView(latlng, 17); // 取得した位置にズーム
+      
+      // ユーザーの現在地をアイコンで表示
+      if (userMarker) {
+        userMarker.setLatLng(latlng);
+      } else {
+        userMarker = L.marker(latlng).addTo(map);
+      }
+      map.setView(latlng, 17);
       resetInactivityTimer();
     }
 
@@ -103,47 +116,12 @@
       resetInactivityTimer();
     }
 
-    function downloadData(filename, content, type) {
-      const blob = new Blob([content], { type });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      resetInactivityTimer();
-    }
-
-    function downloadGeoJSON() {
-      if (positions.length === 0) return;
-      const geojson = { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "LineString", coordinates: positions.map(p => [p.lng, p.lat]) } }] };
-      downloadData('track.geojson', JSON.stringify(geojson, null, 2), 'application/json');
-    }
-
-    function downloadKML() {
-      if (positions.length === 0) return;
-      let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><LineString><coordinates>`;
-      positions.forEach(p => { kml += `${p.lng},${p.lat},0 `; });
-      kml += `</coordinates></LineString></Placemark></Document></kml>`;
-      downloadData('track.kml', kml, 'application/vnd.google-earth.kml+xml');
-    }
-
-    function resetTracking() {
-      positions = [];
-      if (trackLayer) map.removeLayer(trackLayer);
-      trackLayer = null;
-      updateStatus("記録されたデータをリセットしました。");
-      resetInactivityTimer();
-    }
-
     document.getElementById('startBtn').addEventListener('click', startTracking);
     document.getElementById('stopBtn').addEventListener('click', stopTracking);
     document.getElementById('showTrackBtn').addEventListener('click', showTrack);
-    document.getElementById('downloadGeoJSONBtn').addEventListener('click', downloadGeoJSON);
-    document.getElementById('downloadKMLBtn').addEventListener('click', downloadKML);
-    document.getElementById('resetBtn').addEventListener('click', resetTracking);
+
+    document.addEventListener('click', resetInactivityTimer);
+    document.addEventListener('touchstart', resetInactivityTimer);
   </script>
 </body>
 </html>
