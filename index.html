@@ -1,130 +1,133 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>移動軌跡取得アプリ</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
-    #controls { width: 100%; text-align: center; background: rgba(255, 255, 255, 0.9); padding: 10px; border-bottom: 2px solid #ccc; }
-    button { margin: 5px; padding: 8px 12px; font-size: 14px; }
-    #status { font-size: 14px; color: red; margin-top: 5px; }
-    #map { flex-grow: 1; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運転軌跡記録（国土地理院）</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === "hidden") {
+                navigator.geolocation.getCurrentPosition(() => {});
+            }
+        });
+    </script>
+    <style>
+        #map { height: 80vh; width: 100%; position: relative; }
+        #controls { display: flex; align-items: center; gap: 10px; }
+        #status { margin-left: auto; font-weight: bold; color: red; }
+        button { padding: 10px; }
+    </style>
 </head>
 <body>
-  <div id="controls">
-    <button id="startBtn">スタート</button>
-    <button id="stopBtn">ストップ</button>
-    <button id="showTrackBtn">軌跡表示</button>
-    <button id="downloadGeoJSONBtn">GeoJsonダウンロード</button>
-    <button id="downloadKMLBtn">KMLダウンロード</button>
-    <button id="resetBtn">リセット</button>
-    <div id="status"></div>
-  </div>
-  <div id="map"></div>
+    <h1>運転軌跡記録（国土地理院）</h1>
+    <div id="controls">
+        <button onclick="startTracking()">スタート</button>
+        <button onclick="stopTracking()">ストップ</button>
+        <button onclick="showTrack()">軌跡表示</button>
+        <button onclick="downloadGeoJSON()">GeoJSONダウンロード</button>
+        <button onclick="downloadKML()">KMLダウンロード</button>
+        <span id="status">待機中...</span>
+    </div>
+    <div id="map"></div>
+    
+    <script>
+        let map = L.map('map').setView([35.6895, 139.6917], 14);
+        let path = [];
+        let polyline = L.polyline([], { color: 'red' }).addTo(map);
+        let marker = L.marker([35.6895, 139.6917]).addTo(map); // 現在地マーカー
+        let watchId;
+        let trackingActive = false;
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    let positions = [];
-    let trackLayer = null;
-    let inactivityTimer = null;
-    let userMarker = null;
-    let watchId = null;
-    const INACTIVITY_LIMIT = 20 * 60 * 1000;
-    const statusElement = document.getElementById("status");
-    const map = L.map('map').setView([35.3606, 138.7274], 15);
+        // 国土地理院の地図タイルを設定
+        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+            attribution: "<a href='https://maps.gsi.go.jp/'>国土地理院</a>",
+            maxZoom: 18
+        }).addTo(map);
 
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-      attribution: "<a href='https://www.gsi.go.jp/'>国土地理院</a>",
-      maxZoom: 18
-    }).addTo(map);
+        function startTracking() {
+            if (navigator.geolocation) {
+                document.getElementById("status").textContent = "計測中...";
+                path = []; // 新しい記録を開始するためリセット
+                polyline.setLatLngs([]); // 既存の軌跡をリセット
+                trackingActive = true;
 
-    function updateStatus(message) {
-      statusElement.textContent = message;
-    }
-
-    function resetInactivityTimer() {
-      if (inactivityTimer) clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        if (watchId !== null) {
-          stopTracking();
-          updateStatus("20分間操作がなかったため、追跡を中断しました。");
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        if (!trackingActive) return;
+                        let lat = position.coords.latitude;
+                        let lng = position.coords.longitude;
+                        let timestamp = new Date(position.timestamp).toISOString();
+                        let newPos = { lat, lng, timestamp };
+                        path.push(newPos);
+                        polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
+                        map.flyTo([lat, lng], 14, { animate: true }); // iPhoneでもズームが動作するようにflyToを使用
+                        marker.setLatLng([lat, lng]); // 現在位置を更新
+                        document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}`;
+                    },
+                    (error) => {
+                        let errorMsg;
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = "位置情報の利用が許可されていません。ブラウザの設定を確認してください。";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = "位置情報が取得できません。電波状況やGPSの設定を確認してください。";
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = "位置情報の取得がタイムアウトしました。再試行してください。";
+                                break;
+                            default:
+                                errorMsg = "未知のエラーが発生しました。";
+                        }
+                        document.getElementById("status").textContent = errorMsg;
+                        console.error("位置情報の取得に失敗しました", error);
+                    },
+                    { enableHighAccuracy: true, maximumAge: 0 } // タイムアウトを削除
+                );
+            } else {
+                alert("このブラウザでは位置情報がサポートされていません。");
+                document.getElementById("status").textContent = "位置情報がサポートされていません。";
+            }
         }
-      }, INACTIVITY_LIMIT);
-    }
 
-    function startTracking() {
-      if (watchId !== null) {
-        updateStatus("すでに位置情報を取得中です。");
-        return;
-      }
-      if (!navigator.geolocation) {
-        updateStatus("位置情報が利用できません。");
-        return;
-      }
-      updateStatus("位置情報の取得を開始しました。");
-      watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 5000,
-        distanceFilter: 0.5
-      });
-      resetInactivityTimer();
-    }
+        function stopTracking() {
+            trackingActive = false;
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
+            alert("記録を停止しました。");
+        }
 
-    function stopTracking() {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        updateStatus("位置情報の取得を停止しました。");
-      }
-    }
-
-    function successCallback(position) {
-      const latlng = [position.coords.latitude, position.coords.longitude];
-      positions.push({ lat: position.coords.latitude, lng: position.coords.longitude, timestamp: position.timestamp });
-      updateStatus(`位置取得成功: 緯度${position.coords.latitude}, 経度${position.coords.longitude}`);
-      
-      if (userMarker) {
-        userMarker.setLatLng(latlng);
-      } else {
-        userMarker = L.marker(latlng).addTo(map);
-      }
-      map.setView(latlng, 17);
-      resetInactivityTimer();
-    }
-
-    function errorCallback(error) {
-      updateStatus(`位置情報エラー: ${error.message}`);
-    }
-
-    function showTrack() {
-      if (positions.length === 0) {
-        updateStatus("記録された位置がありません。");
-        return;
-      }
-      if (trackLayer) map.removeLayer(trackLayer);
-      trackLayer = L.polyline(positions.map(p => [p.lat, p.lng]), { color: 'red' }).addTo(map);
-      map.fitBounds(trackLayer.getBounds());
-      updateStatus("軌跡を表示しました。");
-    }
-
-    function resetTracking() {
-      positions = [];
-      if (trackLayer) map.removeLayer(trackLayer);
-      trackLayer = null;
-      updateStatus("記録されたデータをリセットしました。");
-    }
-
-    document.getElementById('startBtn').addEventListener('click', startTracking);
-    document.getElementById('stopBtn').addEventListener('click', stopTracking);
-    document.getElementById('showTrackBtn').addEventListener('click', showTrack);
-    document.getElementById('downloadGeoJSONBtn').addEventListener('click', downloadGeoJSON);
-    document.getElementById('downloadKMLBtn').addEventListener('click', downloadKML);
-    document.getElementById('resetBtn').addEventListener('click', resetTracking);
-  </script>
+        function downloadGeoJSON() {
+            if (path.length === 0) {
+                alert("ダウンロードするデータがありません。");
+                return;
+            }
+            let geojson = {
+                type: "FeatureCollection",
+                features: path.map(point => ({
+                    type: "Feature",
+                    geometry: {
+                        type: "Point",
+                        coordinates: [point.lng, point.lat]
+                    },
+                    properties: { timestamp: point.timestamp }
+                }))
+            };
+            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+            let a = document.createElement("a");
+            document.body.appendChild(a); // 確実にDOMに追加
+            a.style.display = "none";
+            a.href = URL.createObjectURL(blob);
+            a.download = "track.geojson";
+            a.click();
+            URL.revokeObjectURL(a.href);
+            document.body.removeChild(a);
+        }
+    </script>
 </body>
 </html>
