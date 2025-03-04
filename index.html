@@ -107,14 +107,13 @@
             };
             let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
             let a = document.createElement("a");
+            document.body.appendChild(a); // 確実にDOMに追加
+            a.style.display = "none";
             a.href = URL.createObjectURL(blob);
             a.download = "track.geojson";
-            document.body.appendChild(a);
             a.click();
-            setTimeout(() => {
-                URL.revokeObjectURL(a.href);
-                document.body.removeChild(a);
-            }, 100);
+            URL.revokeObjectURL(a.href);
+            document.body.removeChild(a);
         }
     </script>
 </body>
