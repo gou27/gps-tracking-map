@@ -89,6 +89,14 @@
             }
         }
 
+        function stopTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
+                alert("記録を停止しました。");
+            }
+        }
+
         function downloadGeoJSON() {
             if (path.length === 0) {
                 alert("ダウンロードするデータがありません。");
