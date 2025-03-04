@@ -36,11 +36,10 @@
         let map = L.map('map').setView([35.6895, 139.6917], 14);
         let path = [];
         let polyline = L.polyline([], { color: 'red' }).addTo(map);
-        let marker = L.marker([35.6895, 139.6917]).addTo(map); // 現在地マーカー
+        let marker = L.marker([35.6895, 139.6917]).addTo(map);
         let watchId;
         let trackingActive = false;
 
-        // 国土地理院の地図タイルを設定
         L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
             attribution: "<a href='https://maps.gsi.go.jp/'>国土地理院</a>",
             maxZoom: 18
@@ -49,8 +48,8 @@
         function startTracking() {
             if (navigator.geolocation) {
                 document.getElementById("status").textContent = "計測中...";
-                path = []; // 新しい記録を開始するためリセット
-                polyline.setLatLngs([]); // 既存の軌跡をリセット
+                path = [];
+                polyline.setLatLngs([]);
                 trackingActive = true;
 
                 watchId = navigator.geolocation.watchPosition(
@@ -62,8 +61,8 @@
                         let newPos = { lat, lng, timestamp };
                         path.push(newPos);
                         polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
-                        map.flyTo([lat, lng], 14, { animate: true }); // iPhoneでもズームが動作するようにflyToを使用
-                        marker.setLatLng([lat, lng]); // 現在位置を更新
+                        map.flyTo([lat, lng], 14, { animate: true });
+                        marker.setLatLng([lat, lng]);
                         document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}`;
                     },
                     (error) => {
@@ -84,7 +83,7 @@
                         document.getElementById("status").textContent = errorMsg;
                         console.error("位置情報の取得に失敗しました", error);
                     },
-                    { enableHighAccuracy: true, maximumAge: 0 } // タイムアウトを削除
+                    { enableHighAccuracy: true, maximumAge: 0 }
                 );
             } else {
                 alert("このブラウザでは位置情報がサポートされていません。");
@@ -120,10 +119,40 @@
             };
             let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
             let a = document.createElement("a");
-            document.body.appendChild(a); // 確実にDOMに追加
+            document.body.appendChild(a);
             a.style.display = "none";
             a.href = URL.createObjectURL(blob);
             a.download = "track.geojson";
+            a.click();
+            URL.revokeObjectURL(a.href);
+            document.body.removeChild(a);
+        }
+
+        function downloadKML() {
+            if (path.length === 0) {
+                alert("ダウンロードするデータがありません。");
+                return;
+            }
+            let kml = `<?xml version="1.0" encoding="UTF-8"?>
+            <kml xmlns="http://www.opengis.net/kml/2.2">
+                <Document>
+                    <name>運転軌跡</name>
+                    ${path.map(point => `
+                        <Placemark>
+                            <TimeStamp><when>${point.timestamp}</when></TimeStamp>
+                            <Point>
+                                <coordinates>${point.lng},${point.lat},0</coordinates>
+                            </Point>
+                        </Placemark>
+                    `).join('')}
+                </Document>
+            </kml>`;
+            let blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+            let a = document.createElement("a");
+            document.body.appendChild(a);
+            a.style.display = "none";
+            a.href = URL.createObjectURL(blob);
+            a.download = "track.kml";
             a.click();
             URL.revokeObjectURL(a.href);
             document.body.removeChild(a);
