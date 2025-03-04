@@ -85,8 +85,12 @@
       downloadData('track.kml', kml, 'application/vnd.google-earth.kml+xml');
     }
 
+    document.getElementById('startBtn').addEventListener('click', startTracking);
+    document.getElementById('stopBtn').addEventListener('click', stopTracking);
+    document.getElementById('showTrackBtn').addEventListener('click', showTrack);
     document.getElementById('downloadGeoJSONBtn').addEventListener('click', downloadGeoJSON);
     document.getElementById('downloadKMLBtn').addEventListener('click', downloadKML);
+    document.getElementById('resetBtn').addEventListener('click', resetTracking);
   </script>
 </body>
 </html>
