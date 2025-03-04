@@ -34,6 +34,12 @@
     let inactivityTimer = null;
     const INACTIVITY_LIMIT = 20 * 60 * 1000;
     const statusElement = document.getElementById("status");
+    const map = L.map('map').setView([35.3606, 138.7274], 15); // 初期ズームレベル15
+
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+      attribution: "<a href='https://www.gsi.go.jp/'>国土地理院</a>",
+      maxZoom: 18
+    }).addTo(map);
 
     function updateStatus(message) {
       statusElement.textContent = message;
@@ -73,8 +79,10 @@
     }
 
     function successCallback(position) {
+      const latlng = [position.coords.latitude, position.coords.longitude];
       positions.push({ lat: position.coords.latitude, lng: position.coords.longitude, timestamp: position.timestamp });
       updateStatus(`位置取得成功: 緯度${position.coords.latitude}, 経度${position.coords.longitude}`);
+      map.setView(latlng, 17); // 取得した位置にズーム
       resetInactivityTimer();
     }
 
@@ -95,6 +103,33 @@
       resetInactivityTimer();
     }
 
+    function downloadData(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      resetInactivityTimer();
+    }
+
+    function downloadGeoJSON() {
+      if (positions.length === 0) return;
+      const geojson = { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "LineString", coordinates: positions.map(p => [p.lng, p.lat]) } }] };
+      downloadData('track.geojson', JSON.stringify(geojson, null, 2), 'application/json');
+    }
+
+    function downloadKML() {
+      if (positions.length === 0) return;
+      let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><LineString><coordinates>`;
+      positions.forEach(p => { kml += `${p.lng},${p.lat},0 `; });
+      kml += `</coordinates></LineString></Placemark></Document></kml>`;
+      downloadData('track.kml', kml, 'application/vnd.google-earth.kml+xml');
+    }
+
     function resetTracking() {
       positions = [];
       if (trackLayer) map.removeLayer(trackLayer);
@@ -106,13 +141,9 @@
     document.getElementById('startBtn').addEventListener('click', startTracking);
     document.getElementById('stopBtn').addEventListener('click', stopTracking);
     document.getElementById('showTrackBtn').addEventListener('click', showTrack);
+    document.getElementById('downloadGeoJSONBtn').addEventListener('click', downloadGeoJSON);
+    document.getElementById('downloadKMLBtn').addEventListener('click', downloadKML);
     document.getElementById('resetBtn').addEventListener('click', resetTracking);
-
-    const map = L.map('map').setView([35.3606, 138.7274], 5);
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: "<a href='https://www.gsi.go.jp/'>国土地理院</a>" }).addTo(map);
-
-    document.addEventListener('click', resetInactivityTimer);
-    document.addEventListener('touchstart', resetInactivityTimer);
   </script>
 </body>
 </html>
