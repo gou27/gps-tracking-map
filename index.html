@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-	<link rel="manifest" href="manifest.json">
-	<meta name="apple-mobile-web-app-capable" content="yes">
-	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-	<meta name="apple-mobile-web-app-title" content="運転軌跡記録">
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>運転軌跡記録（国土地理院）</title>
@@ -20,6 +15,7 @@
     <h1>運転軌跡記録（国土地理院）</h1>
     <button onclick="startTracking()">スタート</button>
     <button onclick="stopTracking()">ストップ</button>
+    <button onclick="downloadTrack()">ダウンロード</button>
     <div id="map"></div>
     <p id="status"></p>
     
@@ -79,6 +75,31 @@
                 document.getElementById("status").textContent = "記録を停止しました。";
                 alert("記録を停止しました。");
             }
+        }
+
+        function downloadTrack() {
+            if (path.length === 0) {
+                alert("ダウンロードするデータがありません。");
+                return;
+            }
+            let geojson = {
+                type: "FeatureCollection",
+                features: [{
+                    type: "Feature",
+                    geometry: {
+                        type: "LineString",
+                        coordinates: path.map(coord => [coord[1], coord[0]])
+                    },
+                    properties: {}
+                }]
+            };
+            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "track.geojson";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
     </script>
 </body>
