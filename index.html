@@ -60,13 +60,13 @@
                         let errorMsg;
                         switch (error.code) {
                             case error.PERMISSION_DENIED:
-                                errorMsg = "位置情報の利用が許可されていません。";
+                                errorMsg = "位置情報の利用が許可されていません。ブラウザの設定を確認してください。";
                                 break;
                             case error.POSITION_UNAVAILABLE:
-                                errorMsg = "位置情報を取得できませんでした。";
+                                errorMsg = "位置情報が取得できません。電波状況やGPSの設定を確認してください。";
                                 break;
                             case error.TIMEOUT:
-                                errorMsg = "位置情報の取得がタイムアウトしました。";
+                                errorMsg = "位置情報の取得がタイムアウトしました。再試行してください。";
                                 break;
                             default:
                                 errorMsg = "未知のエラーが発生しました。";
@@ -74,10 +74,11 @@
                         document.getElementById("status").textContent = errorMsg;
                         console.error("位置情報の取得に失敗しました", error);
                     },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    { enableHighAccuracy: true, maximumAge: 0 } // タイムアウトを削除
                 );
             } else {
                 alert("このブラウザでは位置情報がサポートされていません。");
+                document.getElementById("status").textContent = "位置情報がサポートされていません。";
             }
         }
 
@@ -96,32 +97,6 @@
             }
             polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
             map.setView([path[0].lat, path[0].lng], 14, { animate: true });
-        }
-
-        function downloadGeoJSON() {
-            if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
-                return;
-            }
-            let geojson = {
-                type: "FeatureCollection",
-                features: path.map(point => ({
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [point.lng, point.lat]
-                    },
-                    properties: { timestamp: point.timestamp }
-                }))
-            };
-            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.geojson";
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(a.href), 100);
-            document.body.removeChild(a);
         }
     </script>
 </body>
