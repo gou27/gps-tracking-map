@@ -15,15 +15,16 @@
     <h1>運転軌跡記録（国土地理院）</h1>
     <button onclick="startTracking()">スタート</button>
     <button onclick="stopTracking()">ストップ</button>
+    <button onclick="showTrack()">軌跡表示</button>
     <button onclick="downloadGeoJSON()">GeoJSONダウンロード</button>
     <button onclick="downloadKML()">KMLダウンロード</button>
     <div id="map"></div>
-    <p id="status"></p>
+    <p id="status">待機中...</p>
     
     <script>
         let map = L.map('map').setView([35.6895, 139.6917], 14);
         let path = [];
-        let polyline = L.polyline(path, { color: 'red' }).addTo(map);
+        let polyline = L.polyline([], { color: 'red' }).addTo(map);
         let marker = L.marker([35.6895, 139.6917]).addTo(map); // 現在地マーカー
         let watchId;
 
@@ -35,7 +36,10 @@
 
         function startTracking() {
             if (navigator.geolocation) {
-                document.getElementById("status").textContent = "位置情報の取得を開始...";
+                document.getElementById("status").textContent = "計測中...";
+                path = []; // 新しい記録を開始するためリセット
+                polyline.setLatLngs([]); // 既存の軌跡をリセット
+
                 watchId = navigator.geolocation.watchPosition(
                     (position) => {
                         let lat = position.coords.latitude;
@@ -46,7 +50,7 @@
                         polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
                         map.setView([lat, lng], 14);
                         marker.setLatLng([lat, lng]); // 現在位置を更新
-                        document.getElementById("status").textContent = `現在地: 緯度 ${lat}, 経度 ${lng}`;
+                        document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}`;
                     },
                     (error) => {
                         let errorMsg;
@@ -76,62 +80,18 @@
         function stopTracking() {
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
-                document.getElementById("status").textContent = "記録を停止しました。";
+                document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
                 alert("記録を停止しました。");
             }
         }
 
-        function downloadGeoJSON() {
+        function showTrack() {
             if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
+                alert("表示する軌跡データがありません。");
                 return;
             }
-            let geojson = {
-                type: "FeatureCollection",
-                features: path.map(point => ({
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [point.lng, point.lat]
-                    },
-                    properties: { timestamp: point.timestamp }
-                }))
-            };
-            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.geojson";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function downloadKML() {
-            if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
-                return;
-            }
-            let kml = `<?xml version="1.0" encoding="UTF-8"?>
-            <kml xmlns="http://www.opengis.net/kml/2.2">
-                <Document>
-                    <name>運転軌跡</name>
-                    ${path.map(point => `
-                        <Placemark>
-                            <TimeStamp><when>${point.timestamp}</when></TimeStamp>
-                            <Point>
-                                <coordinates>${point.lng},${point.lat},0</coordinates>
-                            </Point>
-                        </Placemark>
-                    `).join('')}
-                </Document>
-            </kml>`;
-            let blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.kml";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
+            map.setView([path[0].lat, path[0].lng], 14);
         }
     </script>
 </body>
