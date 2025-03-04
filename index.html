@@ -7,19 +7,23 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        #map { height: 80vh; width: 100%; }
-        button { margin: 10px; padding: 10px; }
+        #map { height: 80vh; width: 100%; position: relative; }
+        #controls { display: flex; align-items: center; gap: 10px; }
+        #status { margin-left: auto; font-weight: bold; color: red; }
+        button { padding: 10px; }
     </style>
 </head>
 <body>
     <h1>運転軌跡記録（国土地理院）</h1>
-    <button onclick="startTracking()">スタート</button>
-    <button onclick="stopTracking()">ストップ</button>
-    <button onclick="showTrack()">軌跡表示</button>
-    <button onclick="downloadGeoJSON()">GeoJSONダウンロード</button>
-    <button onclick="downloadKML()">KMLダウンロード</button>
+    <div id="controls">
+        <button onclick="startTracking()">スタート</button>
+        <button onclick="stopTracking()">ストップ</button>
+        <button onclick="showTrack()">軌跡表示</button>
+        <button onclick="downloadGeoJSON()">GeoJSONダウンロード</button>
+        <button onclick="downloadKML()">KMLダウンロード</button>
+        <span id="status">待機中...</span>
+    </div>
     <div id="map"></div>
-    <p id="status">待機中...</p>
     
     <script>
         let map = L.map('map').setView([35.6895, 139.6917], 14);
