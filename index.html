@@ -6,6 +6,13 @@
     <title>運転軌跡記録（国土地理院）</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === "hidden") {
+                navigator.geolocation.getCurrentPosition(() => {});
+            }
+        });
+    </script>
     <style>
         #map { height: 80vh; width: 100%; position: relative; }
         #controls { display: flex; align-items: center; gap: 10px; }
@@ -52,7 +59,7 @@
                         let newPos = { lat, lng, timestamp };
                         path.push(newPos);
                         polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
-                        map.setView([lat, lng], 14, { animate: true }); // iPhoneでズームが効くようにアニメーションを追加
+                        map.flyTo([lat, lng], 14, { animate: true }); // iPhoneでもズームが動作するようにflyToを使用
                         marker.setLatLng([lat, lng]); // 現在位置を更新
                         document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}`;
                     },
@@ -82,32 +89,21 @@
             }
         }
 
-        function downloadGeoJSON() {
+        function stopTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
+                alert("記録を停止しました。");
+            }
+        }
+
+        function showTrack() {
             if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
+                alert("表示する軌跡データがありません。");
                 return;
             }
-            let geojson = {
-                type: "FeatureCollection",
-                features: path.map(point => ({
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [point.lng, point.lat]
-                    },
-                    properties: { timestamp: point.timestamp }
-                }))
-            };
-            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.geojson";
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                URL.revokeObjectURL(a.href);
-                document.body.removeChild(a);
-            }, 100);
+            polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
+            map.flyTo([path[0].lat, path[0].lng], 14, { animate: true });
         }
     </script>
 </body>
