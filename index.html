@@ -3,20 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <!-- iOSでホーム画面に追加するための指定 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>移動軌跡取得アプリ</title>
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; }
-    #map { height: 70vh; }
-    #controls { padding: 10px; text-align: center; }
-    button { margin: 5px; padding: 10px 15px; font-size: 16px; }
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    #controls { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 5px; border-radius: 10px; text-align: center; }
+    button { margin: 2px; padding: 8px 12px; font-size: 14px; }
+    #map { height: 100vh; }
   </style>
 </head>
 <body>
-  <div id="map"></div>
   <div id="controls">
     <button id="startBtn">スタート</button>
     <button id="stopBtn">ストップ</button>
@@ -25,18 +22,16 @@
     <button id="downloadKMLBtn">KMLダウンロード</button>
     <button id="resetBtn">リセット</button>
   </div>
+  <div id="map"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    // 状態変数
     let watchId = null;
     let positions = [];
     let trackLayer = null;
     let inactivityTimer = null;
-    const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20分
+    const INACTIVITY_LIMIT = 20 * 60 * 1000;
 
-    // 20分間のユーザー操作がなければ追跡を中断
     function resetInactivityTimer() {
       if (inactivityTimer) clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
@@ -47,86 +42,47 @@
       }, INACTIVITY_LIMIT);
     }
 
-    // 位置情報取得開始（既に動作中なら何もしない）
     function startTracking() {
-      if (watchId !== null) {
-        console.log("既に追跡中です。");
-        return;
-      }
+      if (watchId !== null) return;
       if (!navigator.geolocation) {
-        alert("このブラウザは位置情報取得に対応していません。");
+        alert("位置情報が利用できません。");
         return;
       }
-      // 位置情報を高精度で取得
-      watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-      });
-      console.log("追跡開始");
+      watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
       resetInactivityTimer();
     }
 
-    // 位置情報取得停止
     function stopTracking() {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        console.log("追跡停止");
       }
       resetInactivityTimer();
     }
 
-    // 位置情報取得成功時のコールバック
     function successCallback(position) {
-      const { latitude, longitude } = position.coords;
-      positions.push({ lat: latitude, lng: longitude, timestamp: position.timestamp });
-      console.log("位置記録:", latitude, longitude);
+      positions.push({ lat: position.coords.latitude, lng: position.coords.longitude, timestamp: position.timestamp });
       resetInactivityTimer();
     }
 
-    // エラー時のコールバック
     function errorCallback(error) {
       console.error("位置情報エラー:", error);
       resetInactivityTimer();
     }
 
-    // 画面上に軌跡を表示（記録された位置座標をポリラインで表示）
     function showTrack() {
-      if (positions.length === 0) {
-        alert("記録された位置がありません。");
-        return;
-      }
-      // 既存の軌跡レイヤがあれば削除
-      if (trackLayer) {
-        map.removeLayer(trackLayer);
-      }
-      const latlngs = positions.map(p => [p.lat, p.lng]);
-      trackLayer = L.polyline(latlngs, { color: 'red' }).addTo(map);
+      if (positions.length === 0) return;
+      if (trackLayer) map.removeLayer(trackLayer);
+      trackLayer = L.polyline(positions.map(p => [p.lat, p.lng]), { color: 'red' }).addTo(map);
       map.fitBounds(trackLayer.getBounds());
       resetInactivityTimer();
     }
 
-    // GeoJSON形式でダウンロード
     function downloadGeoJSON() {
-      if (positions.length === 0) {
-        alert("記録された位置がありません。");
-        return;
-      }
-      const geojson = {
-        type: "FeatureCollection",
-        features: [{
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: positions.map(p => [p.lng, p.lat])
-          }
-        }]
-      };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geojson, null, 2));
+      if (positions.length === 0) return;
+      const geojson = { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "LineString", coordinates: positions.map(p => [p.lng, p.lat]) } }] };
       const a = document.createElement('a');
-      a.href = dataStr;
+      a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geojson, null, 2));
       a.download = 'track.geojson';
       document.body.appendChild(a);
       a.click();
@@ -134,33 +90,13 @@
       resetInactivityTimer();
     }
 
-    // KML形式でダウンロード
     function downloadKML() {
-      if (positions.length === 0) {
-        alert("記録された位置がありません。");
-        return;
-      }
-      let kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>Track</name>
-    <Placemark>
-      <name>Track</name>
-      <LineString>
-        <coordinates>
-`;
-      positions.forEach(p => {
-        kml += `${p.lng},${p.lat},0 `;
-      });
-      kml += `
-        </coordinates>
-      </LineString>
-    </Placemark>
-  </Document>
-</kml>`;
-      const dataStr = "data:application/vnd.google-earth.kml+xml;charset=utf-8," + encodeURIComponent(kml);
+      if (positions.length === 0) return;
+      let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><LineString><coordinates>`;
+      positions.forEach(p => { kml += `${p.lng},${p.lat},0 `; });
+      kml += `</coordinates></LineString></Placemark></Document></kml>`;
       const a = document.createElement('a');
-      a.href = dataStr;
+      a.href = "data:application/vnd.google-earth.kml+xml;charset=utf-8," + encodeURIComponent(kml);
       a.download = 'track.kml';
       document.body.appendChild(a);
       a.click();
@@ -168,18 +104,13 @@
       resetInactivityTimer();
     }
 
-    // 追跡データのリセット（記録データのクリアと軌跡の削除）
     function resetTracking() {
       positions = [];
-      if (trackLayer) {
-        map.removeLayer(trackLayer);
-        trackLayer = null;
-      }
-      console.log("追跡データをリセットしました。");
+      if (trackLayer) map.removeLayer(trackLayer);
+      trackLayer = null;
       resetInactivityTimer();
     }
 
-    // 各ボタンのイベントリスナー設定
     document.getElementById('startBtn').addEventListener('click', startTracking);
     document.getElementById('stopBtn').addEventListener('click', stopTracking);
     document.getElementById('showTrackBtn').addEventListener('click', showTrack);
@@ -187,18 +118,11 @@
     document.getElementById('downloadKMLBtn').addEventListener('click', downloadKML);
     document.getElementById('resetBtn').addEventListener('click', resetTracking);
 
-    // 国土地理院の地図タイルを利用してLeafletマップを初期化
-    const map = L.map('map').setView([35.3606, 138.7274], 5);  // 日本全体が見える初期表示
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-      attribution: "<a href='https://www.gsi.go.jp/'>国土地理院</a>"
-    }).addTo(map);
+    const map = L.map('map').setView([35.3606, 138.7274], 5);
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: "<a href='https://www.gsi.go.jp/'>国土地理院</a>" }).addTo(map);
 
-    // ユーザー操作（クリックやタッチ）があれば不活性タイマーをリセット
     document.addEventListener('click', resetInactivityTimer);
     document.addEventListener('touchstart', resetInactivityTimer);
-
-    // ※ iOSで画面ロック時も動作させるためには、Webアプリとしてホーム画面に追加することが推奨されます。
-    //  また、バックグラウンドでの位置情報取得はOS側の制限があるため、場合によってはネイティブアプリ化などの対応が必要です。
   </script>
 </body>
 </html>
