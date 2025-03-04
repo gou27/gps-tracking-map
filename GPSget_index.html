@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運転軌跡記録</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" defer></script>
+    <style>
+        #map { height: 80vh; width: 100%; }
+        button { margin: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>運転軌跡記録アプリ</h1>
+    <button onclick="startTracking()">スタート</button>
+    <button onclick="stopTracking()">ストップ</button>
+    <div id="map"></div>
+    <p id="status"></p>
+    
+    <script>
+        let map;
+        let polyline;
+        let watchId;
+        let path = [];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 35.6895, lng: 139.6917 }, // 東京の中心
+                zoom: 14
+            });
+            polyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                strokeOpacity: 1.0,
+                strokeWeight: 3,
+                map: map
+            });
+        }
+
+        function startTracking() {
+            if (navigator.geolocation) {
+                document.getElementById("status").textContent = "位置情報の取得を開始...";
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        let lat = position.coords.latitude;
+                        let lng = position.coords.longitude;
+                        let newPos = { lat, lng };
+                        path.push(newPos);
+                        polyline.setPath(path);
+                        map.setCenter(newPos);
+                        document.getElementById("status").textContent = `現在地: 緯度 ${lat}, 経度 ${lng}`;
+                    },
+                    (error) => {
+                        let errorMsg;
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = "位置情報の利用が許可されていません。";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = "位置情報を取得できませんでした。";
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = "位置情報の取得がタイムアウトしました。";
+                                break;
+                            default:
+                                errorMsg = "未知のエラーが発生しました。";
+                        }
+                        document.getElementById("status").textContent = errorMsg;
+                        console.error("位置情報の取得に失敗しました", error);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                alert("このブラウザでは位置情報がサポートされていません。");
+            }
+        }
+
+        function stopTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                document.getElementById("status").textContent = "記録を停止しました。";
+                alert("記録を停止しました。");
+            }
+        }
+    </script>
+</body>
+</html>
