@@ -89,21 +89,32 @@
             }
         }
 
-        function stopTracking() {
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
-                alert("記録を停止しました。");
-            }
-        }
-
-        function showTrack() {
+        function downloadGeoJSON() {
             if (path.length === 0) {
-                alert("表示する軌跡データがありません。");
+                alert("ダウンロードするデータがありません。");
                 return;
             }
-            polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
-            map.flyTo([path[0].lat, path[0].lng], 14, { animate: true });
+            let geojson = {
+                type: "FeatureCollection",
+                features: path.map(point => ({
+                    type: "Feature",
+                    geometry: {
+                        type: "Point",
+                        coordinates: [point.lng, point.lat]
+                    },
+                    properties: { timestamp: point.timestamp }
+                }))
+            };
+            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "track.geojson";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                URL.revokeObjectURL(a.href);
+                document.body.removeChild(a);
+            }, 100);
         }
     </script>
 </body>
