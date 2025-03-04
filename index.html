@@ -37,7 +37,7 @@
         let path = [];
         let polyline = L.polyline([], { color: 'red' }).addTo(map);
         let marker = L.marker([35.6895, 139.6917]).addTo(map); // 現在地マーカー
-        let watchId;
+        let watchId = null;
 
         // 国土地理院の地図タイルを設定
         L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
@@ -90,38 +90,12 @@
         }
 
         function stopTracking() {
-            if (watchId) {
+            if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
+                watchId = null;
                 document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
                 alert("記録を停止しました。");
             }
-        }
-
-        function downloadGeoJSON() {
-            if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
-                return;
-            }
-            let geojson = {
-                type: "FeatureCollection",
-                features: path.map(point => ({
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [point.lng, point.lat]
-                    },
-                    properties: { timestamp: point.timestamp }
-                }))
-            };
-            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-            let a = document.createElement("a");
-            document.body.appendChild(a); // 確実にDOMに追加
-            a.style.display = "none";
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.geojson";
-            a.click();
-            URL.revokeObjectURL(a.href);
-            document.body.removeChild(a);
         }
     </script>
 </body>
