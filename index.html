@@ -6,6 +6,7 @@
     <title>運転軌跡記録（国土地理院）</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="downloads.js"></script> <!-- ダウンロード機能を外部ファイル化 -->
     <script>
         document.addEventListener("visibilitychange", function() {
             if (document.visibilityState === "hidden") {
@@ -58,7 +59,7 @@
                         if (!trackingActive) return;
                         let lat = position.coords.latitude;
                         let lng = position.coords.longitude;
-                        let timestamp = new Date(position.timestamp).toISOString();
+                        let timestamp = new Date(position.timestamp).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
                         let newPos = { lat, lng, timestamp };
                         path.push(newPos);
                         polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
@@ -92,59 +93,12 @@
             }
         }
 
-        function stopTracking() {
-            trackingActive = false;
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-            }
-            document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
-            alert("記録を停止しました。");
-        }
-
         function downloadGeoJSON() {
-            let geojson = {
-                type: "FeatureCollection",
-                features: path.map(point => ({
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [point.lng, point.lat]
-                    },
-                    properties: { timestamp: point.timestamp }
-                }))
-            };
-            let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.geojson";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            downloadGeoJSONFromPath(path);
         }
 
         function downloadKML() {
-            let kml = `<?xml version="1.0" encoding="UTF-8"?>
-            <kml xmlns="http://www.opengis.net/kml/2.2">
-                <Document>
-                    <name>運転軌跡</name>
-                    ${path.map(point => `
-                        <Placemark>
-                            <TimeStamp><when>${point.timestamp}</when></TimeStamp>
-                            <Point>
-                                <coordinates>${point.lng},${point.lat},0</coordinates>
-                            </Point>
-                        </Placemark>
-                    `).join('')}
-                </Document>
-            </kml>`;
-            let blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "track.kml";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            downloadKMLFromPath(path);
         }
     </script>
 </body>
