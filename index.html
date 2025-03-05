@@ -5,7 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>運転軌跡記録（国土地理院）</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js">        function moveToCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        let lat = position.coords.latitude;
+                        let lng = position.coords.longitude;
+                        map.flyTo([lat, lng], map.getZoom(), { animate: true });
+                        document.getElementById("status").textContent = `現在位置へ移動: 緯度 ${lat}, 経度 ${lng}`;
+                    },
+                    (error) => {
+                        document.getElementById("status").textContent = "現在位置を取得できませんでした。";
+                        console.error("現在位置の取得に失敗しました", error);
+                    },
+                    { enableHighAccuracy: true, maximumAge: 0 }
+                );
+            } else {
+                alert("このブラウザでは位置情報がサポートされていません。");
+            }
+        }
+    
     <script src="downloads.js"></script> <!-- ダウンロード機能を外部ファイル化 -->
     <script>
         document.addEventListener("visibilitychange", function() {
@@ -23,12 +42,13 @@
 </head>
 <body>
     <h1>運転軌跡記録（国土地理院）</h1>
-    <div id="controls">
+    
+        <button onclick="moveToCurrentLocation()">現在位置へ移動</button>
         <button onclick="startTracking()">スタート</button>
         <button onclick="stopTracking()">ストップ</button>
         <button onclick="showTrack()">軌跡表示</button>
-        <button onclick="downloadGeoJSON(path)">GeoJSONダウンロード</button>
-        <button onclick="downloadKML(path)">KMLダウンロード</button>
+        <button onclick="downloadGeoJSONFromPath(path)">GeoJSONダウンロード</button>
+        <button onclick="downloadKMLFromPath(path)">KMLダウンロード</button>
         <button onclick="resetTracking()">リセット</button>
         <span id="status">待機中...</span>
     </div>
@@ -63,7 +83,7 @@
                         let newPos = { lat, lng, timestamp };
                         path.push(newPos);
                         polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
-                        map.flyTo([lat, lng], map.getZoom(), { animate: true });
+                        map.flyTo([lat, lng], 14, { animate: true });
                         marker.setLatLng([lat, lng]);
                         document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}, 時刻 ${timestamp}`;
                     },
