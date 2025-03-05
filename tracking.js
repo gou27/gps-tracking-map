@@ -4,7 +4,7 @@ function moveToCurrentLocation() {
             (position) => {
                 let lat = position.coords.latitude;
                 let lng = position.coords.longitude;
-                map.flyTo([lat, lng], map.getZoom(), { animate: true });
+                map.flyTo([lat, lng], 18, { animate: true });
                 document.getElementById("status").textContent = `現在位置へ移動: 緯度 ${lat}, 経度 ${lng}`;
             },
             (error) => {
@@ -34,7 +34,7 @@ function startTracking() {
                 let newPos = { lat, lng, timestamp };
                 path.push(newPos);
                 polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
-                map.flyTo([lat, lng], 14, { animate: true });
+                map.flyTo([lat, lng], map.getZoom(), { animate: true });
                 marker.setLatLng([lat, lng]);
                 document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}, 時刻 ${timestamp}`;
             },
