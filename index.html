@@ -65,7 +65,7 @@
                         polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
                         map.flyTo([lat, lng], 14, { animate: true });
                         marker.setLatLng([lat, lng]);
-                        document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}`;
+                        document.getElementById("status").textContent = `計測中: 緯度 ${lat}, 経度 ${lng}, 時刻 ${timestamp}`;
                     },
                     (error) => {
                         let errorMsg;
