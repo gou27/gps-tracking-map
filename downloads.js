@@ -1,4 +1,4 @@
-function downloadGeoJSONFromPath() {
+function downloadGeoJSONFromPath(path) {
     if (path.length === 0) {
         alert("ダウンロードするデータがありません。");
         return;
@@ -25,7 +25,7 @@ function downloadGeoJSONFromPath() {
     document.body.removeChild(a);
 }
 
-function downloadKMLFromPath() {
+function downloadKMLFromPath(path) {
     if (path.length === 0) {
         alert("ダウンロードするデータがありません。");
         return;
