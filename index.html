@@ -93,12 +93,31 @@
             }
         }
 
-        function downloadGeoJSON() {
-            downloadGeoJSONFromPath(path);
+        function stopTracking() {
+            trackingActive = false;
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            document.getElementById("status").textContent = "計測停止。軌跡表示ボタンを押すと再表示できます。";
+            alert("記録を停止しました。");
         }
 
-        function downloadKML() {
-            downloadKMLFromPath(path);
+        function showTrack() {
+            if (path.length === 0) {
+                alert("記録された軌跡がありません。");
+                return;
+            }
+            polyline.setLatLngs(path.map(p => [p.lat, p.lng]));
+            map.fitBounds(polyline.getBounds());
+        }
+
+        function resetTracking() {
+            stopTracking();
+            path = [];
+            polyline.setLatLngs([]);
+            document.getElementById("status").textContent = "リセット完了。新しい計測を開始できます。";
+            alert("データをリセットしました。");
         }
     </script>
 </body>
