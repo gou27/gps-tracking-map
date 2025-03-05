@@ -25,7 +25,8 @@
             }
         }
     
-    <script src="downloads.js">        function moveToCurrentLocation() {
+    <script src="downloads.js">        
+      function moveToCurrentLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -45,13 +46,7 @@
             }
         }
     </script> <!-- ダウンロード機能を外部ファイル化 -->
-    <script>
-        document.addEventListener("visibilitychange", function() {
-            if (document.visibilityState === "hidden") {
-                navigator.geolocation.getCurrentPosition(() => {});
-            }
-        });
-    </script>
+    <script src="tracking.js"></script>
     <style>
         #map { height: 80vh; width: 100%; position: relative; }
         #controls { display: flex; align-items: center; gap: 10px; }
