@@ -28,6 +28,7 @@
         <button onclick="showTrack()">軌跡表示</button>
         <button onclick="downloadGeoJSON()">GeoJSONダウンロード</button>
         <button onclick="downloadKML()">KMLダウンロード</button>
+        <button onclick="resetTracking()">リセット</button>
         <span id="status">待機中...</span>
     </div>
     <div id="map"></div>
@@ -102,10 +103,6 @@
         }
 
         function downloadGeoJSON() {
-            if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
-                return;
-            }
             let geojson = {
                 type: "FeatureCollection",
                 features: path.map(point => ({
@@ -119,20 +116,14 @@
             };
             let blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
             let a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style.display = "none";
             a.href = URL.createObjectURL(blob);
             a.download = "track.geojson";
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(a.href);
             document.body.removeChild(a);
         }
 
         function downloadKML() {
-            if (path.length === 0) {
-                alert("ダウンロードするデータがありません。");
-                return;
-            }
             let kml = `<?xml version="1.0" encoding="UTF-8"?>
             <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
@@ -149,12 +140,10 @@
             </kml>`;
             let blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
             let a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style.display = "none";
             a.href = URL.createObjectURL(blob);
             a.download = "track.kml";
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(a.href);
             document.body.removeChild(a);
         }
     </script>
